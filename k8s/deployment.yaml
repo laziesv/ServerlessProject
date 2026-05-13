@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: todo-list
-          image: kiadt/todo-list:latest
+          image: kiadt/todo-list-frontend:latest
           imagePullPolicy: Always
           ports:
             - containerPort: 3000
