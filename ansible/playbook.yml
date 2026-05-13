@@ -1,0 +1,36 @@
+---
+- name: Configure local deployment environment for To-do List
+  hosts: localhost
+  gather_facts: false
+
+  vars:
+    app_namespace: todo-list
+    app_node_port: 30080
+
+  tasks:
+    - name: Check kubectl is installed
+      ansible.builtin.command: kubectl version --client
+      register: kubectl_check
+      changed_when: false
+
+    - name: Check Docker is installed
+      ansible.builtin.command: docker --version
+      register: docker_check
+      changed_when: false
+
+    - name: Create deployment notes directory
+      ansible.builtin.file:
+        path: ../deploy-info
+        state: directory
+        mode: "0755"
+
+    - name: Write deployment environment summary
+      ansible.builtin.copy:
+        dest: ../deploy-info/environment.txt
+        mode: "0644"
+        content: |
+          namespace={{ app_namespace }}
+          node_port={{ app_node_port }}
+          app_url=http://localhost:{{ app_node_port }}
+          kubectl={{ kubectl_check.stdout }}
+          docker={{ docker_check.stdout }}
