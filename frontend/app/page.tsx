@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import {
   Check,
   Circle,
@@ -21,9 +21,11 @@ type Task = {
   note: string;
   priority: Priority;
   completed: boolean;
+  createdAt?: string;
+  updatedAt?: string;
 };
 
-const initialTasks: Task[] = [
+const fallbackTasks: Task[] = [
   {
     id: 1,
     title: "เตรียม Jenkins pipeline",
@@ -47,6 +49,9 @@ const initialTasks: Task[] = [
   },
 ];
 
+const apiBaseUrl =
+  process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") || "http://localhost:8080";
+
 const priorityLabels: Record<Priority, string> = {
   low: "ทั่วไป",
   medium: "สำคัญ",
@@ -60,11 +65,13 @@ const priorityStyles: Record<Priority, string> = {
 };
 
 export default function Home() {
-  const [tasks, setTasks] = useState<Task[]>(initialTasks);
+  const [tasks, setTasks] = useState<Task[]>(fallbackTasks);
   const [title, setTitle] = useState("");
   const [note, setNote] = useState("");
   const [priority, setPriority] = useState<Priority>("medium");
   const [search, setSearch] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+  const [apiMessage, setApiMessage] = useState("กำลังเชื่อมต่อ Go backend...");
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editTitle, setEditTitle] = useState("");
   const [editNote, setEditNote] = useState("");
@@ -72,6 +79,27 @@ export default function Home() {
 
   const completedCount = tasks.filter((task) => task.completed).length;
   const activeCount = tasks.length - completedCount;
+
+  useEffect(() => {
+    const loadTasks = async () => {
+      try {
+        const response = await fetch(`${apiBaseUrl}/api/tasks`, {
+          cache: "no-store",
+        });
+        if (!response.ok) throw new Error("load tasks failed");
+
+        const data = (await response.json()) as Task[];
+        setTasks(data);
+        setApiMessage("เชื่อมต่อ Go backend สำเร็จ");
+      } catch {
+        setApiMessage("ใช้ข้อมูลตัวอย่างชั่วคราว เพราะยังเชื่อมต่อ Go backend ไม่ได้");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadTasks();
+  }, []);
 
   const filteredTasks = useMemo(() => {
     const keyword = search.trim().toLowerCase();
@@ -92,33 +120,55 @@ export default function Home() {
     setPriority("medium");
   };
 
-  const addTask = (event: FormEvent<HTMLFormElement>) => {
+  const addTask = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!title.trim()) return;
 
-    const newTask: Task = {
-      id: Date.now(),
-      title: title.trim(),
-      note: note.trim() || "ไม่มีรายละเอียดเพิ่มเติม",
-      priority,
-      completed: false,
-    };
+    try {
+      const response = await fetch(`${apiBaseUrl}/api/tasks`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: title.trim(),
+          note: note.trim(),
+          priority,
+          completed: false,
+        }),
+      });
+      if (!response.ok) throw new Error("create task failed");
 
-    setTasks((currentTasks) => [newTask, ...currentTasks]);
-    resetForm();
+      const newTask = (await response.json()) as Task;
+      setTasks((currentTasks) => [newTask, ...currentTasks]);
+      setApiMessage("เพิ่มงานผ่าน Go backend แล้ว");
+      resetForm();
+    } catch {
+      setApiMessage("เพิ่มงานไม่สำเร็จ กรุณาตรวจว่า Go backend รันอยู่ที่ port 8080");
+    }
   };
 
-  const deleteTask = (id: number) => {
-    setTasks((currentTasks) => currentTasks.filter((task) => task.id !== id));
-    if (editingId === id) setEditingId(null);
+  const deleteTask = async (id: number) => {
+    try {
+      const response = await fetch(`${apiBaseUrl}/api/tasks/${id}`, {
+        method: "DELETE",
+      });
+      if (!response.ok) throw new Error("delete task failed");
+
+      setTasks((currentTasks) => currentTasks.filter((task) => task.id !== id));
+      if (editingId === id) setEditingId(null);
+      setApiMessage("ลบงานผ่าน Go backend แล้ว");
+    } catch {
+      setApiMessage("ลบงานไม่สำเร็จ กรุณาตรวจว่า Go backend รันอยู่");
+    }
   };
 
-  const toggleTask = (id: number) => {
-    setTasks((currentTasks) =>
-      currentTasks.map((task) =>
-        task.id === id ? { ...task, completed: !task.completed } : task,
-      ),
-    );
+  const toggleTask = async (id: number) => {
+    const selectedTask = tasks.find((task) => task.id === id);
+    if (!selectedTask) return;
+
+    await updateTask({
+      ...selectedTask,
+      completed: !selectedTask.completed,
+    });
   };
 
   const startEditing = (task: Task) => {
@@ -135,22 +185,45 @@ export default function Home() {
     setEditPriority("medium");
   };
 
-  const saveEditing = (id: number) => {
+  const saveEditing = async (id: number) => {
     if (!editTitle.trim()) return;
 
-    setTasks((currentTasks) =>
-      currentTasks.map((task) =>
-        task.id === id
-          ? {
-              ...task,
-              title: editTitle.trim(),
-              note: editNote.trim() || "ไม่มีรายละเอียดเพิ่มเติม",
-              priority: editPriority,
-            }
-          : task,
-      ),
-    );
+    const selectedTask = tasks.find((task) => task.id === id);
+    if (!selectedTask) return;
+
+    await updateTask({
+      ...selectedTask,
+      title: editTitle.trim(),
+      note: editNote.trim(),
+      priority: editPriority,
+    });
     cancelEditing();
+  };
+
+  const updateTask = async (task: Task) => {
+    try {
+      const response = await fetch(`${apiBaseUrl}/api/tasks/${task.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: task.title,
+          note: task.note,
+          priority: task.priority,
+          completed: task.completed,
+        }),
+      });
+      if (!response.ok) throw new Error("update task failed");
+
+      const updatedTask = (await response.json()) as Task;
+      setTasks((currentTasks) =>
+        currentTasks.map((currentTask) =>
+          currentTask.id === updatedTask.id ? updatedTask : currentTask,
+        ),
+      );
+      setApiMessage("อัปเดตงานผ่าน Go backend แล้ว");
+    } catch {
+      setApiMessage("อัปเดตงานไม่สำเร็จ กรุณาตรวจว่า Go backend รันอยู่");
+    }
   };
 
   return (
@@ -167,6 +240,9 @@ export default function Home() {
             </h1>
             <p className="mt-3 max-w-2xl text-base leading-7 text-slate-600">
               หน้าเดียวสำหรับเพิ่ม ลบ แก้ไข ค้นหา และติดตามสถานะงาน พร้อมข้อมูลสรุปสำหรับการสาธิตระบบตาม README.md
+            </p>
+            <p className="mt-2 text-sm font-semibold text-emerald-700">
+              {isLoading ? "กำลังโหลดข้อมูล..." : apiMessage}
             </p>
           </div>
 

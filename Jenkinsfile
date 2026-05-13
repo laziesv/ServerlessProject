@@ -2,8 +2,10 @@ pipeline {
   agent any
 
   environment {
-    APP_DIR = 'frontend'
-    DOCKER_IMAGE = 'kiadt/todo-list'
+    FRONTEND_DIR = 'frontend'
+    BACKEND_DIR = 'backend'
+    FRONTEND_IMAGE = 'kiadt/todo-list-frontend'
+    BACKEND_IMAGE = 'kiadt/todo-list-backend'
     DOCKER_TAG = "${env.BUILD_NUMBER}"
     KUBE_NAMESPACE = 'todo-list'
   }
@@ -21,24 +23,31 @@ pipeline {
 
     stage('Build') {
       steps {
-        dir(env.APP_DIR) {
+        dir(env.FRONTEND_DIR) {
           sh 'npm ci'
           sh 'npm run build'
+        }
+        dir(env.BACKEND_DIR) {
+          sh 'go build ./...'
         }
       }
     }
 
     stage('Test') {
       steps {
-        dir(env.APP_DIR) {
+        dir(env.FRONTEND_DIR) {
           sh 'npm run lint'
+        }
+        dir(env.BACKEND_DIR) {
+          sh 'go test ./...'
         }
       }
     }
 
     stage('Docker Build') {
       steps {
-        sh 'docker build -t ${DOCKER_IMAGE}:${DOCKER_TAG} -t ${DOCKER_IMAGE}:latest ./frontend'
+        sh 'docker build -t ${FRONTEND_IMAGE}:${DOCKER_TAG} -t ${FRONTEND_IMAGE}:latest ./frontend'
+        sh 'docker build -t ${BACKEND_IMAGE}:${DOCKER_TAG} -t ${BACKEND_IMAGE}:latest ./backend'
       }
     }
 
@@ -46,8 +55,10 @@ pipeline {
       steps {
         withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
           sh 'echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin'
-          sh 'docker push ${DOCKER_IMAGE}:${DOCKER_TAG}'
-          sh 'docker push ${DOCKER_IMAGE}:latest'
+          sh 'docker push ${FRONTEND_IMAGE}:${DOCKER_TAG}'
+          sh 'docker push ${FRONTEND_IMAGE}:latest'
+          sh 'docker push ${BACKEND_IMAGE}:${DOCKER_TAG}'
+          sh 'docker push ${BACKEND_IMAGE}:latest'
         }
       }
     }
@@ -63,8 +74,12 @@ pipeline {
         }
         sh 'kubectl apply -f k8s/deployment.yaml'
         sh 'kubectl apply -f k8s/service.yaml'
-        sh 'kubectl set image -n ${KUBE_NAMESPACE} deployment/todo-list todo-list=${DOCKER_IMAGE}:${DOCKER_TAG}'
+        sh 'kubectl apply -f k8s/backend-deployment.yaml'
+        sh 'kubectl apply -f k8s/backend-service.yaml'
+        sh 'kubectl set image -n ${KUBE_NAMESPACE} deployment/todo-list todo-list=${FRONTEND_IMAGE}:${DOCKER_TAG}'
+        sh 'kubectl set image -n ${KUBE_NAMESPACE} deployment/todo-backend todo-backend=${BACKEND_IMAGE}:${DOCKER_TAG}'
         sh 'kubectl rollout status -n ${KUBE_NAMESPACE} deployment/todo-list'
+        sh 'kubectl rollout status -n ${KUBE_NAMESPACE} deployment/todo-backend'
       }
     }
   }
