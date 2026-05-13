@@ -1,47 +1,47 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: todo-list
+  name: todo-backend
   namespace: todo-list
   labels:
-    app: todo-list
+    app: todo-backend
 spec:
   replicas: 2
   selector:
     matchLabels:
-      app: todo-list
+      app: todo-backend
   template:
     metadata:
       labels:
-        app: todo-list
+        app: todo-backend
     spec:
       containers:
-        - name: todo-list
-          image: kiadt/todo-list-frontend:latest
+        - name: todo-backend
+          image: kiadt/todo-list-backend:latest
           imagePullPolicy: Always
-          env:
-            - name: HOSTNAME
-              value: "0.0.0.0"
-            - name: PORT
-              value: "3000"
           ports:
-            - containerPort: 3000
+            - containerPort: 8080
+          env:
+            - name: PORT
+              value: "8080"
+            - name: CORS_ORIGIN
+              value: "*"
           readinessProbe:
             httpGet:
               path: /api/health
-              port: 3000
-            initialDelaySeconds: 10
+              port: 8080
+            initialDelaySeconds: 5
             periodSeconds: 10
           livenessProbe:
             httpGet:
               path: /api/health
-              port: 3000
-            initialDelaySeconds: 20
+              port: 8080
+            initialDelaySeconds: 15
             periodSeconds: 20
           resources:
             requests:
-              cpu: 100m
-              memory: 128Mi
+              cpu: 50m
+              memory: 64Mi
             limits:
-              cpu: 500m
-              memory: 512Mi
+              cpu: 250m
+              memory: 256Mi

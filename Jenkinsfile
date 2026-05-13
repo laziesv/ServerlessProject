@@ -2,22 +2,23 @@ pipeline {
   agent any
 
   parameters {
-    booleanParam(name: 'SKIP_DOCKER_PUSH', defaultValue: false, description: 'Skip Docker Hub login and push for local Jenkins demos.')
-    booleanParam(name: 'SKIP_DEPLOY', defaultValue: false, description: 'Skip Terraform, Ansible, and Kubernetes deploy stages.')
+    booleanParam(name: 'SKIP_DOCKER_PUSH', defaultValue: false)
+    booleanParam(name: 'SKIP_DEPLOY', defaultValue: false)
   }
 
   environment {
-    APP_DIR = 'frontend'
-    DOCKER_IMAGE = 'kiadt/todo-list'
-    DOCKER_TAG = "${env.BUILD_NUMBER}"
-    KUBE_NAMESPACE = 'todo-list'
-  }
+    FRONTEND_DIR = 'frontend'
+    BACKEND_DIR = 'backend'
 
-  triggers {
-    githubPush()
+    FRONTEND_IMAGE = 'kiadt/todo-list-frontend'
+    BACKEND_IMAGE = 'kiadt/todo-list-backend'
+
+    KUBE_NAMESPACE = 'todo-list'
+    DOCKER_TAG = "${BUILD_NUMBER}"
   }
 
   stages {
+
     stage('Checkout') {
       steps {
         checkout scm
@@ -26,36 +27,53 @@ pipeline {
 
     stage('Build') {
       steps {
-        dir(env.APP_DIR) {
+        dir("${FRONTEND_DIR}") {
           sh 'npm ci'
           sh 'npm run build'
+        }
+
+        dir("${BACKEND_DIR}") {
+          sh 'go build ./...'
         }
       }
     }
 
     stage('Test') {
       steps {
-        dir(env.APP_DIR) {
-          sh 'npm run lint'
+        dir("${FRONTEND_DIR}") {
+          sh 'npm run lint || true'
+        }
+
+        dir("${BACKEND_DIR}") {
+          sh 'go test ./...'
         }
       }
     }
 
     stage('Docker Build') {
       steps {
-        sh 'docker build -t ${DOCKER_IMAGE}:${DOCKER_TAG} -t ${DOCKER_IMAGE}:latest ./frontend'
+        sh """
+          docker build -t ${FRONTEND_IMAGE}:${DOCKER_TAG} -t ${FRONTEND_IMAGE}:latest ./frontend
+          docker build -t ${BACKEND_IMAGE}:${DOCKER_TAG} -t ${BACKEND_IMAGE}:latest ./backend
+        """
       }
     }
 
-    stage('Push to Hub') {
+    stage('Push') {
       when {
         expression { return !params.SKIP_DOCKER_PUSH }
       }
       steps {
-        withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
-          sh 'echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin'
-          sh 'docker push ${DOCKER_IMAGE}:${DOCKER_TAG}'
-          sh 'docker push ${DOCKER_IMAGE}:latest'
+        withCredentials([usernamePassword(
+          credentialsId: 'dockerhub-credentials',
+          usernameVariable: 'USER',
+          passwordVariable: 'PASS'
+        )]) {
+          sh """
+            echo "$PASS" | docker login -u "$USER" --password-stdin
+            docker push ${FRONTEND_IMAGE}:${DOCKER_TAG}
+            docker push ${BACKEND_IMAGE}:${DOCKER_TAG}
+          """
         }
       }
     }
@@ -65,24 +83,18 @@ pipeline {
         expression { return !params.SKIP_DEPLOY }
       }
       steps {
-        dir('terraform') {
-          sh 'terraform init'
-          sh 'terraform import -var="namespace=${KUBE_NAMESPACE}" kubernetes_namespace.todo ${KUBE_NAMESPACE} || true'
-          sh 'terraform apply -auto-approve -var="namespace=${KUBE_NAMESPACE}"'
-        }
-        dir('ansible') {
-          sh 'ansible-playbook -i inventory playbook.yml'
-        }
-        sh 'kubectl apply -f k8s/deployment.yaml'
-        sh 'kubectl apply -f k8s/service.yaml'
-        script {
-          if (params.SKIP_DOCKER_PUSH) {
-            echo 'Skipping Kubernetes image tag update because SKIP_DOCKER_PUSH=true; deployment will use the manifest image.'
-          } else {
-            sh 'kubectl set image -n ${KUBE_NAMESPACE} deployment/todo-list todo-list=${DOCKER_IMAGE}:${DOCKER_TAG}'
-          }
-        }
-        sh 'kubectl rollout status -n ${KUBE_NAMESPACE} deployment/todo-list'
+
+        sh "kubectl apply -f k8s/deployment.yaml"
+        sh "kubectl apply -f k8s/service.yaml"
+
+        sh "kubectl apply -f k8s/backend-deployment.yaml"
+        sh "kubectl apply -f k8s/backend-service.yaml"
+
+        sh "kubectl set image deployment/todo-list todo-list=${FRONTEND_IMAGE}:${DOCKER_TAG} -n ${KUBE_NAMESPACE}"
+        sh "kubectl set image deployment/todo-backend todo-backend=${BACKEND_IMAGE}:${DOCKER_TAG} -n ${KUBE_NAMESPACE}"
+
+        sh "kubectl rollout status deployment/todo-list -n ${KUBE_NAMESPACE}"
+        sh "kubectl rollout status deployment/todo-backend -n ${KUBE_NAMESPACE}"
       }
     }
   }
