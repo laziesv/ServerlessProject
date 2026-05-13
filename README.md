@@ -443,3 +443,4 @@ npm run build
 ```
 
 ผ่านทั้งสองคำสั่งแล้ว ส่วน Docker daemon ในเครื่องยังไม่เปิด จึงยังไม่ได้ build image จริงจาก Dockerfile ในรอบตรวจนี้
+# Local demo commands: see [LOCAL_DEMO.md](./LOCAL_DEMO.md).

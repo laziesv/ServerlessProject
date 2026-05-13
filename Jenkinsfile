@@ -1,6 +1,11 @@
 pipeline {
   agent any
 
+  parameters {
+    booleanParam(name: 'SKIP_DOCKER_PUSH', defaultValue: false, description: 'Skip Docker Hub login and push for local Jenkins demos.')
+    booleanParam(name: 'SKIP_DEPLOY', defaultValue: false, description: 'Skip Terraform, Ansible, and Kubernetes deploy stages.')
+  }
+
   environment {
     APP_DIR = 'frontend'
     DOCKER_IMAGE = 'kiadt/todo-list'
@@ -43,6 +48,9 @@ pipeline {
     }
 
     stage('Push to Hub') {
+      when {
+        expression { return !params.SKIP_DOCKER_PUSH }
+      }
       steps {
         withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
           sh 'echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin'
@@ -53,9 +61,13 @@ pipeline {
     }
 
     stage('Deploy') {
+      when {
+        expression { return !params.SKIP_DEPLOY }
+      }
       steps {
         dir('terraform') {
           sh 'terraform init'
+          sh 'terraform import -var="namespace=${KUBE_NAMESPACE}" kubernetes_namespace.todo ${KUBE_NAMESPACE} || true'
           sh 'terraform apply -auto-approve -var="namespace=${KUBE_NAMESPACE}"'
         }
         dir('ansible') {
@@ -63,7 +75,13 @@ pipeline {
         }
         sh 'kubectl apply -f k8s/deployment.yaml'
         sh 'kubectl apply -f k8s/service.yaml'
-        sh 'kubectl set image -n ${KUBE_NAMESPACE} deployment/todo-list todo-list=${DOCKER_IMAGE}:${DOCKER_TAG}'
+        script {
+          if (params.SKIP_DOCKER_PUSH) {
+            echo 'Skipping Kubernetes image tag update because SKIP_DOCKER_PUSH=true; deployment will use the manifest image.'
+          } else {
+            sh 'kubectl set image -n ${KUBE_NAMESPACE} deployment/todo-list todo-list=${DOCKER_IMAGE}:${DOCKER_TAG}'
+          }
+        }
         sh 'kubectl rollout status -n ${KUBE_NAMESPACE} deployment/todo-list'
       }
     }

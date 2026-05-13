@@ -19,6 +19,11 @@ spec:
         - name: todo-list
           image: kiadt/todo-list:latest
           imagePullPolicy: Always
+          env:
+            - name: HOSTNAME
+              value: "0.0.0.0"
+            - name: PORT
+              value: "3000"
           ports:
             - containerPort: 3000
           readinessProbe:
