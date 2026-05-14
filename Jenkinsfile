@@ -10,8 +10,8 @@ pipeline {
     FRONTEND_DIR = 'frontend'
     BACKEND_DIR = 'backend'
 
-    FRONTEND_IMAGE = 'kiadt/todo-list-frontend'
-    BACKEND_IMAGE = 'kiadt/todo-list-backend'
+    FRONTEND_IMAGE = 'laziesv/todo-list-frontend'
+    BACKEND_IMAGE = 'laziesv/todo-list-backend'
 
     KUBE_NAMESPACE = 'todo-list'
     DOCKER_TAG = "${BUILD_NUMBER}"
