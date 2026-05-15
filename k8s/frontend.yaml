@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: next-frontend
-          image: your-dockerhub/nextjs-frontend:latest
+          image: laziesv/nextjs-frontend:latest
           ports:
             - containerPort: 3000
           env:
