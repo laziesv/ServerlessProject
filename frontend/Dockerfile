@@ -1,4 +1,4 @@
-# ---------- Build Stage ----------
+# Build Stage
 FROM node:20-alpine AS builder
 
 WORKDIR /app
@@ -14,7 +14,7 @@ ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 RUN npm run build
 
 
-# ---------- Run Stage ----------
+# Run Stage
 FROM node:20-alpine
 
 WORKDIR /app

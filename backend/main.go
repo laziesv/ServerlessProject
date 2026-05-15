@@ -53,12 +53,10 @@ func main() {
 	})
 
 	// Routes
-	api := r.Group("/api")
-
-	api.GET("/todos", getTodos)
-	api.POST("/todos", createTodo)
-	api.PUT("/todos/:id", toggleTodo)
-	api.DELETE("/todos/:id", deleteTodo)
+	r.GET("/todos", getTodos)
+	r.POST("/todos", createTodo)
+	r.PUT("/todos/:id", toggleTodo)
+	r.DELETE("/todos/:id", deleteTodo)
 
 	// Port
 	port := os.Getenv("PORT")

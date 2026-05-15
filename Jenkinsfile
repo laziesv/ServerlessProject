@@ -8,13 +8,13 @@ pipeline {
         FRONTEND_IMAGE = "${DOCKERHUB}/nextjs-frontend:latest"
 
         K8S_NAMESPACE = "todo-app"
+
+        // ✅ FIX: frontend must know backend URL at build time
+        NEXT_PUBLIC_API_URL = "http://app.10.0.2.15.nip.io"
     }
 
     stages {
 
-        // =========================
-        // 1. Checkout Code
-        // =========================
         stage('Checkout') {
             steps {
                 git branch: 'todo-app',
@@ -22,31 +22,25 @@ pipeline {
             }
         }
 
-        // =========================
-        // 2. Build Backend (Go)
-        // =========================
         stage('Build Backend') {
             steps {
-                sh '''
+                sh """
                     docker build -t $BACKEND_IMAGE ./backend
-                '''
+                """
             }
         }
 
-        // =========================
-        // 3. Build Frontend (Next.js)
-        // =========================
         stage('Build Frontend') {
             steps {
-                sh '''
-                    docker build -t $FRONTEND_IMAGE ./frontend
-                '''
+                sh """
+                    docker build \
+                      -t $FRONTEND_IMAGE \
+                      --build-arg NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL \
+                      ./frontend
+                """
             }
         }
 
-        // =========================
-        // 4. Docker Login
-        // =========================
         stage('Docker Login') {
             steps {
                 withCredentials([usernamePassword(
@@ -54,46 +48,41 @@ pipeline {
                     usernameVariable: 'USER',
                     passwordVariable: 'PASS'
                 )]) {
-                    sh '''
+                    sh """
                         echo $PASS | docker login -u $USER --password-stdin
-                    '''
+                    """
                 }
             }
         }
 
-        // =========================
-        // 5. Push Images
-        // =========================
         stage('Push Images') {
             steps {
-                sh '''
+                sh """
                     docker push $BACKEND_IMAGE
                     docker push $FRONTEND_IMAGE
-                '''
+                """
             }
         }
 
-        // =========================
-        // 6. Deploy to Kubernetes
-        // =========================
         stage('Deploy to K8s') {
             steps {
-                sh '''
+                sh """
                     kubectl apply -f k8s/
+
                     kubectl rollout restart deployment go-backend -n $K8S_NAMESPACE
                     kubectl rollout restart deployment next-frontend -n $K8S_NAMESPACE
-                '''
+                """
             }
         }
     }
 
     post {
         success {
-            echo '✅ Deployment Success!'
+            echo "✅ Deployment Success!"
         }
 
         failure {
-            echo '❌ Deployment Failed!'
+            echo "❌ Deployment Failed!"
         }
     }
 }

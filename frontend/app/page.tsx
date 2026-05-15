@@ -18,7 +18,7 @@ type Task = {
   completed: boolean;
 };
 
-const API = "/api";
+const API = process.env.NEXT_PUBLIC_API_URL; // ใช้ตัวแปรจาก .env.local
 
 export default function Home() {
   const [tasks, setTasks] = useState<Task[]>([]);
