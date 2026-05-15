@@ -12,9 +12,9 @@ pipeline {
 
     stages {
 
-        # =========================
-        # 1. Checkout Code
-        # =========================
+        // =========================
+        // 1. Checkout Code
+        // =========================
         stage('Checkout') {
             steps {
                 git branch: 'todo-app',
@@ -22,9 +22,9 @@ pipeline {
             }
         }
 
-        # =========================
-        # 2. Build Backend (Go)
-        # =========================
+        // =========================
+        // 2. Build Backend (Go)
+        // =========================
         stage('Build Backend') {
             steps {
                 sh '''
@@ -33,9 +33,9 @@ pipeline {
             }
         }
 
-        # =========================
-        # 3. Build Frontend (Next.js)
-        # =========================
+        // =========================
+        // 3. Build Frontend (Next.js)
+        // =========================
         stage('Build Frontend') {
             steps {
                 sh '''
@@ -44,9 +44,9 @@ pipeline {
             }
         }
 
-        # =========================
-        # 4. Login DockerHub
-        # =========================
+        // =========================
+        // 4. Docker Login
+        // =========================
         stage('Docker Login') {
             steps {
                 withCredentials([usernamePassword(
@@ -61,9 +61,9 @@ pipeline {
             }
         }
 
-        # =========================
-        # 5. Push Images
-        # =========================
+        // =========================
+        // 5. Push Images
+        // =========================
         stage('Push Images') {
             steps {
                 sh '''
@@ -73,9 +73,9 @@ pipeline {
             }
         }
 
-        # =========================
-        # 6. Deploy to Kubernetes
-        # =========================
+        // =========================
+        // 6. Deploy to Kubernetes
+        // =========================
         stage('Deploy to K8s') {
             steps {
                 sh '''
@@ -87,9 +87,6 @@ pipeline {
         }
     }
 
-    # =========================
-    # POST ACTIONS
-    # =========================
     post {
         success {
             echo '✅ Deployment Success!'
