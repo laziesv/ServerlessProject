@@ -55,8 +55,8 @@ Developer
                   │ Frontend Pods (2 replicas)│
                   │ Backend Pods  (2 replicas)│
                   │                           │
-                  │ Frontend Service :30080  │
-                  │ Backend Service  :8080   │
+                  │ Frontend Service :30080   │
+                  │ Backend Service  :8080    │
                   └───────────────────────────┘
                                 │
                   ┌─────────────┴──────────────┐
