@@ -1,5 +1,5 @@
 # ---------- Build Stage ----------
-FROM golang:1.22-alpine AS builder
+FROM golang:1.25-alpine AS builder
 
 WORKDIR /app
 
@@ -18,7 +18,6 @@ FROM alpine:latest
 
 WORKDIR /app
 
-# timezone + cert (สำคัญกับ DB / HTTPS)
 RUN apk add --no-cache ca-certificates tzdata
 
 COPY --from=builder /app/server .
