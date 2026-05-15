@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: todo-backend
-          image: kiadt/todo-list-backend:latest
+          image: laziesv/todo-list-backend:latest
           imagePullPolicy: Always
           ports:
             - containerPort: 8080

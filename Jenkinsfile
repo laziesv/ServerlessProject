@@ -84,6 +84,18 @@ pipeline {
       }
       steps {
 
+        // Terraform — provision Kubernetes namespace
+        dir('terraform') {
+          sh 'terraform init -input=false'
+          sh 'terraform apply -auto-approve -input=false'
+        }
+
+        // Ansible — verify environment & write deployment summary
+        dir('ansible') {
+          sh 'ansible-playbook -i inventory playbook.yml'
+        }
+
+        // Kubernetes — apply manifests
         sh "kubectl apply -f k8s/deployment.yaml"
         sh "kubectl apply -f k8s/service.yaml"
 

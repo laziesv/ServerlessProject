@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: todo-list
-          image: kiadt/todo-list-frontend:latest
+          image: laziesv/todo-list-frontend:latest
           imagePullPolicy: Always
           env:
             - name: HOSTNAME

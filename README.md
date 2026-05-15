@@ -117,13 +117,13 @@ http://localhost:3000/metrics
 Build image:
 
 ```bash
-docker build -t kiadt/todo-list:latest ./frontend
+docker build -t laziesv/todo-list-frontend:latest ./frontend
 ```
 
 Run container:
 
 ```bash
-docker run --rm -p 3000:3000 kiadt/todo-list:latest
+docker run --rm -p 3000:3000 laziesv/todo-list-frontend:latest
 ```
 
 Dockerfile ใช้ multi-stage build:
