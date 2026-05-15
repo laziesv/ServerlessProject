@@ -17,8 +17,8 @@ pipeline {
         # =========================
         stage('Checkout') {
             steps {
-                git branch: 'main',
-                    url: 'https://github.com/your-repo.git'
+                git branch: 'todo-app',
+                    url: 'https://github.com/laziesv/ServerlessProject.git'
             }
         }
 
