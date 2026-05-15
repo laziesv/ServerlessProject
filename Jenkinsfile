@@ -10,7 +10,7 @@ pipeline {
         K8S_NAMESPACE = "todo-app"
 
         // ✅ FIX: frontend must know backend URL at build time
-        NEXT_PUBLIC_API_URL = "http://app.10.0.2.15.nip.io/api"
+        NEXT_PUBLIC_API_URL = "http://192.168.56.101:32101/api"
     }
 
     stages {

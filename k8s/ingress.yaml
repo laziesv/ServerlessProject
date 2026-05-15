@@ -3,8 +3,6 @@ kind: Ingress
 metadata:
   name: todo-ingress
   namespace: todo-app
-  annotations:
-    traefik.ingress.kubernetes.io/rule-type: PathPrefixStrip
 spec:
   ingressClassName: traefik
   rules:
