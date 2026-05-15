@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: next-frontend
+  namespace: todo-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: next-frontend
+  template:
+    metadata:
+      labels:
+        app: next-frontend
+    spec:
+      containers:
+        - name: next-frontend
+          image: your-dockerhub/nextjs-frontend:latest
+          ports:
+            - containerPort: 3000
+          env:
+            - name: NEXT_PUBLIC_API_URL
+              value: "/api"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: next-frontend
+  namespace: todo-app
+spec:
+  selector:
+    app: next-frontend
+  ports:
+    - port: 3000
+      targetPort: 3000

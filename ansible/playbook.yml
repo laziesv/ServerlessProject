@@ -1,0 +1,115 @@
+---
+- name: Setup local Kubernetes Dev Environment (Go + Next.js)
+  hosts: servers
+  become: yes
+  gather_facts: true
+
+  vars:
+    app_host: 192.168.56.101
+    app_node_port: 32100
+    app_namespace: todo-app
+
+  tasks:
+
+    # =========================
+    # SYSTEM UPDATE
+    # =========================
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+
+    - name: Install base packages
+      apt:
+        name:
+          - docker.io
+          - curl
+          - apt-transport-https
+          - ca-certificates
+          - conntrack
+        state: present
+
+    # =========================
+    # DOCKER
+    # =========================
+    - name: Start Docker
+      service:
+        name: docker
+        state: started
+        enabled: yes
+
+    # =========================
+    # KUBECTL
+    # =========================
+    - name: Install kubectl (latest stable)
+      get_url:
+        url: "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+        dest: /usr/local/bin/kubectl
+        mode: "0755"
+
+    # =========================
+    # MINIKUBE
+    # =========================
+    - name: Install Minikube
+      get_url:
+        url: https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
+        dest: /usr/local/bin/minikube
+        mode: "0755"
+
+    - name: Start Minikube cluster
+      command: minikube start --driver=docker
+      changed_when: false
+
+    # =========================
+    # CHECK VERSIONS
+    # =========================
+    - name: Check kubectl
+      command: kubectl version --client
+      register: kubectl_check
+      changed_when: false
+
+    - name: Check docker
+      command: docker --version
+      register: docker_check
+      changed_when: false
+
+    - name: Check minikube
+      command: minikube version
+      register: minikube_check
+      changed_when: false
+
+    # =========================
+    # SETUP USER ACCESS
+    # =========================
+    - name: Add user to docker group
+      user:
+        name: "{{ ansible_user }}"
+        groups: docker
+        append: yes
+
+    # =========================
+    # OUTPUT INFO
+    # =========================
+    - name: Create deploy info folder
+      file:
+        path: /tmp/deploy-info
+        state: directory
+        mode: "0755"
+
+    - name: Write environment summary
+      copy:
+        dest: /tmp/deploy-info/env.txt
+        content: |
+          namespace={{ app_namespace }}
+          url=http://{{ app_host }}:{{ app_node_port }}
+
+          docker={{ docker_check.stdout }}
+          kubectl={{ kubectl_check.stdout }}
+          minikube={{ minikube_check.stdout }}
+
+    - name: Show summary
+      debug:
+        msg:
+          - "Docker ready"
+          - "Kubectl ready"
+          - "Minikube started"
+          - "URL: http://{{ app_host }}:{{ app_node_port }}"
