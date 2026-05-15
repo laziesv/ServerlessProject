@@ -28,8 +28,10 @@ metadata:
   name: next-frontend
   namespace: todo-app
 spec:
+  type: NodePort
   selector:
     app: next-frontend
   ports:
     - port: 3000
       targetPort: 3000
+      nodePort: 32100

@@ -37,12 +37,23 @@
         state: started
         enabled: yes
 
+    - name: Add user to docker group
+      user:
+        name: "{{ ansible_user }}"
+        groups: docker
+        append: yes
+
     # =========================
-    # KUBECTL
+    # KUBECTL (FIXED)
     # =========================
-    - name: Install kubectl (latest stable)
+    - name: Get stable kubectl version
+      shell: curl -L -s https://dl.k8s.io/release/stable.txt
+      register: k8s_version
+      changed_when: false
+
+    - name: Install kubectl
       get_url:
-        url: "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+        url: "https://dl.k8s.io/release/{{ k8s_version.stdout }}/bin/linux/amd64/kubectl"
         dest: /usr/local/bin/kubectl
         mode: "0755"
 
@@ -55,12 +66,18 @@
         dest: /usr/local/bin/minikube
         mode: "0755"
 
-    - name: Start Minikube cluster
-      command: minikube start --driver=docker
+    - name: Check minikube status
+      command: minikube status
+      register: mk_status
+      failed_when: false
       changed_when: false
 
+    - name: Start Minikube cluster (only if not running)
+      command: minikube start --driver=docker
+      when: "'Running' not in mk_status.stdout"
+
     # =========================
-    # CHECK VERSIONS
+    # VERIFY INSTALLS
     # =========================
     - name: Check kubectl
       command: kubectl version --client
@@ -76,15 +93,6 @@
       command: minikube version
       register: minikube_check
       changed_when: false
-
-    # =========================
-    # SETUP USER ACCESS
-    # =========================
-    - name: Add user to docker group
-      user:
-        name: "{{ ansible_user }}"
-        groups: docker
-        append: yes
 
     # =========================
     # OUTPUT INFO
@@ -111,5 +119,5 @@
         msg:
           - "Docker ready"
           - "Kubectl ready"
-          - "Minikube started"
+          - "Minikube ready"
           - "URL: http://{{ app_host }}:{{ app_node_port }}"
