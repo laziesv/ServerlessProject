@@ -38,7 +38,7 @@
 Developer
     │
     ▼ git push
- GitHub ──── webhook ────▶ Jenkins CI/CD
+ GitHub ────────────────▶ Jenkins CI/CD
                                 │
                     ┌───────────┼───────────┐
                     ▼                       ▼
