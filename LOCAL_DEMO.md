@@ -200,10 +200,7 @@ docker stop todo-front todo-back
 
 ดู `JENKINS_SETUP.md` สำหรับวิธีติดตั้งและรัน Jenkins
 
-ข้อควรระวัง: Jenkins ใช้ port 8080 เหมือน Go backend ดังนั้น:
-
-- demo Jenkins **ก่อน** → แล้ว `docker stop jenkins`
-- แล้วค่อย demo แอปบน Kubernetes ทีหลัง
+Jenkins ใช้ port **8888** ไม่ชนกับ backend (8080) แล้ว สามารถรัน Jenkins และแอปพร้อมกันได้
 
 สำหรับ demo ใช้ parameters:
 
@@ -327,12 +324,6 @@ sh "kubectl apply -f k8s/deployment.yaml"
 
 ### 4.1 Deploy ทั้งหมด (10 คะแนน)
 
-ข้อควรระวัง: ถ้า Jenkins ยังรันอยู่ให้หยุดก่อน เพราะ port 8080 ชนกัน
-
-```powershell
-docker stop jenkins
-```
-
 Deploy:
 
 ```powershell
@@ -405,12 +396,6 @@ cat k8s/service.yaml
 
 Docker Desktop บน Windows ต้อง port-forward เพราะ NodePort ไม่ expose ตรง
 
-**ก่อน port-forward:** ตรวจว่า Jenkins ไม่ได้รันอยู่ (ใช้ port 8080 เหมือนกัน)
-
-```powershell
-docker stop jenkins
-```
-
 เปิด terminal ใหม่สำหรับ frontend (ปล่อยรันค้างไว้ตลอด):
 
 ```powershell
@@ -467,8 +452,8 @@ http://localhost:8080/metrics       <- Backend Prometheus metrics
 **ถ้าเห็น "ใช้ข้อมูลตัวอย่างชั่วคราว"** แปลว่า backend ยังเชื่อมไม่ได้ ตรวจสอบ:
 
 1. port-forward backend ยังรันอยู่ไหม? — ดู terminal ที่เปิดค้าง
-2. Jenkins ยังใช้ port 8080 อยู่ไหม? — `docker ps | findstr jenkins`
-3. ถ้า Jenkins รัน → `docker stop jenkins` → port-forward ใหม่ → refresh browser
+2. port 8080 ถูก process อื่นจองอยู่ไหม? — `netstat -ano | findstr ":8080" | findstr "LISTENING"`
+3. ถ้ามี process จอง → `taskkill /PID <PID> /F` → port-forward ใหม่ → refresh browser
 
 ---
 
@@ -570,8 +555,7 @@ docker start jenkins
 | --- | --- | --- |
 | 1 | ตรวจ Docker Desktop + Kubernetes | 1 นาที |
 | 2 | แสดง Git branches + README | 2 นาที |
-| 3 | **Jenkins demo** (docker start jenkins) | 3 นาที |
-| 4 | **docker stop jenkins** (คืน port 8080) | 10 วินาที |
+| 3 | **Jenkins demo** (http://localhost:8888) | 3 นาที |
 | 5 | docker build frontend + backend | 3 นาที |
 | 6 | terraform apply สร้าง namespace | 1 นาที |
 | 7 | ansible-playbook ตรวจ environment (WSL) | 1 นาที |
@@ -603,25 +587,19 @@ kubectl port-forward -n todo-list svc/todo-list-service 30080:3000
 
 ### ❌ "ใช้ข้อมูลตัวอย่างชั่วคราว เพราะยังเชื่อมต่อ Go backend ไม่ได้"
 
-สาเหตุ: frontend เรียก backend ที่ `localhost:8080` แต่ port 8080 ไม่ได้ forward หรือ Jenkins ใช้อยู่
+สาเหตุ: frontend เรียก backend ที่ `localhost:8080` แต่ port 8080 ไม่ได้ forward
 
 ```powershell
-# 1. ตรวจว่า Jenkins ใช้ port 8080 อยู่ไหม
-docker ps | findstr jenkins
-
-# 2. ถ้ารันอยู่ ให้หยุด
-docker stop jenkins
-
-# 3. ตรวจว่า port 8080 ว่างแล้ว
+# 1. ตรวจว่า port 8080 ว่างไหม
 netstat -ano | findstr ":8080" | findstr "LISTENING"
 
-# 4. ถ้ายังมี process จอง ให้ kill
+# 2. ถ้ามี process จอง ให้ kill
 taskkill /PID <PID> /F
 
-# 5. port-forward backend ใหม่
+# 3. port-forward backend ใหม่
 kubectl port-forward -n todo-list svc/todo-backend-service 8080:8080
 
-# 6. refresh browser ที่ http://localhost:30080
+# 4. refresh browser ที่ http://localhost:30080
 ```
 
 ### ❌ Pods เป็น `ImagePullBackOff` หรือ `ErrImagePull`
